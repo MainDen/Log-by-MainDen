@@ -5,199 +5,259 @@ namespace MainDen.Modules
 {
     public class Log
     {
-        public Log()
+        public class LogException : Exception
         {
-            FormatsCaching();
+            public LogException() : base() { }
+            public LogException(string message) : base(message) { }
+            public LogException(string message, Exception innerException) : base(message, innerException) { }
         }
-        public enum Sender : int
+        public class LogWriteException : LogException
+        {
+            public LogWriteException() : base() { }
+            public LogWriteException(string message) : base(message) { }
+            public LogWriteException(string message, Exception innerException) : base(message, innerException) { }
+        }
+        public class LogSettingsException : LogException
+        {
+            public LogSettingsException() : base() { }
+            public LogSettingsException(string message) : base(message) { }
+            public LogSettingsException(string message, Exception innerException) : base(message, innerException) { }
+        }
+        public Log() { }
+        public enum Sender
         {
             Log = 0,
             User = 1,
             Error = 2,
+            Debug = 3,
+        }
+        [Flags]
+        private enum Output
+        {
+            None = 0,
+            Custom = 1,
+            Console = 2,
+            File = 4,
         }
         private readonly object lSettings = new object();
-        private string filePathFormat = @".\log_{0:yyyy-MM-dd}.txt";
+        private string _FilePathFormat = ".\\log_{0:yyyy-MM-dd}.txt";
         public string FilePathFormat
         {
             get
             {
                 lock (lSettings)
-                    return filePathFormat;
+                    return _FilePathFormat;
             }
             set
             {
                 if (value is null)
-                    return;
+                    throw new ArgumentNullException(nameof(value));
                 try
                 {
                     File.Create(GetFilePath(value, DateTime.Now)).Dispose();
                     lock (lSettings)
-                        filePathFormat = value;
+                        _FilePathFormat = value;
                 }
-                catch { }
+                catch (Exception e) { throw new LogSettingsException("Unable to create log file.", e); }
             }
         }
         public string GetFilePath(DateTime fileDateTime)
         {
             lock (lSettings)
-                return string.Format(filePathFormat, fileDateTime);
+                return string.Format(_FilePathFormat, fileDateTime);
         }
-        private string messageFormat = @"({0} {1:yyyy-MM-dd HH:mm:ss}) {2}\n";
-        private string cachedMessageFormat;
+        private string _MessageFormat = "({0} {1:yyyy-MM-dd HH:mm:ss}) {2}\n";
         public string MessageFormat
         {
             get
             {
                 lock (lSettings)
-                    return messageFormat;
+                    return _MessageFormat;
             }
             set
             {
                 if (value is null)
-                    return;
+                    throw new ArgumentNullException(nameof(value));
                 try
                 {
                     GetMessage(value, Sender.Log, DateTime.Now, "Message");
                     lock (lSettings)
-                    {
-                        messageFormat = value;
-                        cachedMessageFormat = TextConverter.ToMultiLine(messageFormat);
-                    }
-                }
-                catch { }
+                        _MessageFormat = value;
+                } catch (Exception e) { throw new LogSettingsException("Invalid message format.", e); }
             }
         }
-        private string messageDetailsFormat = @"({0} {1:yyyy-MM-dd HH:mm:ss}) {2}\n(Details)\n{3}\n";
-        private string cachedMessageDetailsFormat;
+        private string _MessageDetailsFormat = "({0} {1:yyyy-MM-dd HH:mm:ss}) {2}\n(Details)\n{3}\n";
         public string MessageDetailsFormat
         {
             get
             {
                 lock (lSettings)
-                    return messageDetailsFormat;
+                    return _MessageDetailsFormat;
             }
             set
             {
                 if (value is null)
-                    return;
+                    throw new ArgumentNullException(nameof(value));
                 try
                 {
                     GetMessage(value, Sender.Log, DateTime.Now, "Message", "Details");
                     lock (lSettings)
-                    {
-                        messageDetailsFormat = value;
-                        cachedMessageDetailsFormat = TextConverter.ToMultiLine(messageDetailsFormat);
-                    }
-                }
-                catch { }
-            }
-        }
-        private void FormatsCaching()
-        {
-            lock (lSettings)
-            {
-                cachedMessageFormat = TextConverter.ToMultiLine(messageFormat);
-                cachedMessageDetailsFormat = TextConverter.ToMultiLine(messageDetailsFormat);
+                        _MessageDetailsFormat = value;
+                } catch (Exception e) { throw new LogSettingsException("Invalid message + details format.", e); }
             }
         }
         public string GetMessage(Sender sender, DateTime dateTime, string message)
         {
+            if (message is null)
+                throw new ArgumentNullException(nameof(message));
             lock (lSettings)
                 return string.Format(
-                    cachedMessageFormat ?? "\nMESSAGE FORMAT EXCEPTION\n",
+                    _MessageFormat,
                     sender,
                     dateTime,
-                    message ?? "NULL");
+                    message);
         }
         public string GetMessage(Sender sender, DateTime dateTime, string message, string details)
         {
+            if (message is null)
+                throw new ArgumentNullException(nameof(message));
+            if (details is null)
+                throw new ArgumentNullException(nameof(details));
             lock (lSettings)
                 return string.Format(
-                    (cachedMessageDetailsFormat ?? "\nMESSAGE DETAILS FORMAT EXCEPTION\n"),
+                    _MessageDetailsFormat,
                     sender,
                     dateTime,
-                    message ?? "NULL",
-                    details ?? "NULL");
+                    message,
+                    details);
         }
-        private bool writeToCustom = true;
+        private bool _WriteToCustom = true;
         public bool WriteToCustom
         {
             get
             {
                 lock (lSettings)
-                    return writeToCustom;
+                    return _WriteToCustom;
             }
             set
             {
                 lock (lSettings)
-                    writeToCustom = value;
+                    _WriteToCustom = value;
             }
         }
-        private bool writeToConsole = true;
+        private bool _WriteToConsole = true;
         public bool WriteToConsole
         {
             get
             {
                 lock (lSettings)
-                    return writeToConsole;
+                    return _WriteToConsole;
             }
             set
             {
                 lock (lSettings)
-                    writeToConsole = value;
+                    _WriteToConsole = value;
             }
         }
-        private bool writeToFile = true;
+        private bool _WriteToFile = true;
         public bool WriteToFile
         {
             get
             {
                 lock (lSettings)
-                    return writeToFile;
+                    return _WriteToFile;
             }
             set
             {
                 lock (lSettings)
-                    writeToFile = value;
+                    _WriteToFile = value;
             }
         }
-        public event Action<string> CustomWrite;
-        public void WriteCustom(string logMessage, string filePath)
+        private Action<string> _CustomWrite;
+        public event Action<string> CustomWrite
         {
+            add
+            {
+                if (value is null)
+                    throw new ArgumentNullException(nameof(value));
+                lock (lSettings)
+                    _CustomWrite += value;
+            }
+            remove
+            {
+                if (value is null)
+                    throw new ArgumentNullException(nameof(value));
+                lock (lSettings)
+                    _CustomWrite -= value;
+            }
+        }
+        private Output output;
+        private void WriteBase(string logMessage, string filePath)
+        {
+            if (logMessage is null)
+                throw new ArgumentNullException(nameof(logMessage));
+            if (filePath is null)
+                throw new ArgumentNullException(nameof(filePath));
             lock (lSettings)
             {
-                if (logMessage is null)
-                    throw new ArgumentNullException(nameof(logMessage));
-                if (filePath is null)
-                    throw new ArgumentNullException(nameof(filePath));
+                output = Output.None;
                 if (WriteToCustom)
-                    CustomWrite?.Invoke(logMessage);
+                    try
+                    {
+                        _CustomWrite?.Invoke(logMessage);
+                    } catch { output |= Output.Custom; }
                 if (WriteToConsole)
-                    Console.Write(logMessage);
+                    try
+                    {
+                        Console.Write(logMessage);
+                    } catch { output |= Output.Console; }
                 if (WriteToFile)
-                    File.AppendAllText(filePath, logMessage);
+                    try
+                    {
+                        File.AppendAllText(filePath, logMessage);
+                    } catch { output |= Output.File; }
+                if (output != Output.None)
+                    throw new LogWriteException($"Unable write to {output}.");
+            }
+        }
+        public void WriteCustom(string logMessage)
+        {
+            if (logMessage is null)
+                throw new ArgumentNullException(nameof(logMessage));
+            lock (lSettings)
+            {
+                string filePath = GetFilePath(DateTime.Now);
+                WriteBase(logMessage, filePath);
             }
         }
         public void Write(Sender sender, DateTime dateTime, string message)
         {
+            if (message is null)
+                throw new ArgumentNullException(nameof(message));
             lock (lSettings)
             {
                 string logMessage = GetMessage(sender, dateTime, message);
                 string filePath = GetFilePath(dateTime);
-                WriteCustom(logMessage, filePath);
+                WriteBase(logMessage, filePath);
             }
         }
         public void Write(Sender sender, DateTime dateTime, string message, string details)
         {
+            if (message is null)
+                throw new ArgumentNullException(nameof(message));
+            if (details is null)
+                throw new ArgumentNullException(nameof(details));
             lock (lSettings)
             {
                 string logMessage = GetMessage(sender, dateTime, message, details);
                 string filePath = GetFilePath(dateTime);
-                WriteCustom(logMessage, filePath);
+                WriteBase(logMessage, filePath);
             }
         }
         public void Write(string message, Sender sender = Sender.Log)
         {
+            if (message is null)
+                throw new ArgumentNullException(nameof(message));
             lock (lSettings)
             {
                 DateTime dateTime = DateTime.Now;
@@ -206,6 +266,10 @@ namespace MainDen.Modules
         }
         public void Write(string message, string details, Sender sender = Sender.Log)
         {
+            if (message is null)
+                throw new ArgumentNullException(nameof(message));
+            if (details is null)
+                throw new ArgumentNullException(nameof(details));
             lock (lSettings)
             {
                 DateTime dateTime = DateTime.Now;
@@ -214,59 +278,41 @@ namespace MainDen.Modules
         }
         public static string GetFilePath(string filePathFormat, DateTime fileDateTime)
         {
+            if (filePathFormat is null)
+                throw new ArgumentNullException(nameof(filePathFormat));
             return string.Format(filePathFormat, fileDateTime);
         }
         public static string GetMessage(string messageFormat, Sender sender, DateTime dateTime, string message)
         {
+            if (messageFormat is null)
+                throw new ArgumentNullException(nameof(messageFormat));
+            if (message is null)
+                throw new ArgumentNullException(nameof(message));
             return string.Format(
-                TextConverter.ToMultiLine(messageFormat ?? "\nNULL MESSAGE FORMAT\n"),
+                messageFormat,
                 sender,
                 dateTime,
-                message ?? "NULL");
+                message);
         }
         public static string GetMessage(string messageDetailsFormat, Sender sender, DateTime dateTime, string message, string details)
         {
+            if (messageDetailsFormat is null)
+                throw new ArgumentNullException(nameof(messageDetailsFormat));
+            if (message is null)
+                throw new ArgumentNullException(nameof(message));
+            if (details is null)
+                throw new ArgumentNullException(nameof(details));
             return string.Format(
-                TextConverter.ToMultiLine(messageDetailsFormat ?? "\nNULL MESSAGE DETAILS FORMAT\n"),
+                messageDetailsFormat,
                 sender,
                 dateTime,
-                message ?? "NULL",
-                details ?? "NULL");
+                message,
+                details);
         }
-        private static readonly Log def = new Log();
-        public static Log Def
+        private static readonly Log _Default = new Log();
+        public static Log Default
         {
-            get => def;
-        }
-    }
-    internal static class TextConverter
-    {
-        public static string ToMultiLine(string singleLineText)
-        {
-            int len = singleLineText.Length;
-            char[] result = singleLineText.ToCharArray();
-            bool escaped = false;
-            int escapedCount = 0;
-            for (int i = 0; i < len; i++)
-            {
-                if (escaped)
-                {
-                    if (result[i] == 'n')
-                        result[i - escapedCount] = '\n';
-                    else if (result[i] == 'r')
-                        result[i - escapedCount] = '\r';
-                    else if (result[i] == '\\')
-                        result[i - escapedCount] = '\\';
-                    else
-                        result[i - escapedCount] = result[i];
-                }
-                else if (result[i] == '\\')
-                {
-                    escaped = true;
-                    escapedCount++;
-                }
-            }
-            return new string(result, 0, len - escapedCount);
+            get => _Default;
         }
     }
 }
