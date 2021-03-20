@@ -173,6 +173,20 @@ namespace MainDen.Modules
                     _WriteToFile = value;
             }
         }
+        private bool _AllowWriteNullMessages = false;
+        public bool AllowWriteNullMessages
+        {
+            get
+            {
+                lock (lSettings)
+                    return _AllowWriteNullMessages;
+            }
+            set
+            {
+                lock (lSettings)
+                    _AllowWriteNullMessages = value;
+            }
+        }
         private Action<string> _CustomWrite;
         public event Action<string> CustomWrite
         {
@@ -195,7 +209,10 @@ namespace MainDen.Modules
         private void WriteBase(string logMessage, string filePath)
         {
             if (logMessage is null)
-                throw new ArgumentNullException(nameof(logMessage));
+                if (_AllowWriteNullMessages)
+                    logMessage = "null";
+                else
+                    throw new ArgumentNullException(nameof(logMessage));
             if (filePath is null)
                 throw new ArgumentNullException(nameof(filePath));
             lock (lSettings)
@@ -223,7 +240,10 @@ namespace MainDen.Modules
         public void WriteCustom(string logMessage)
         {
             if (logMessage is null)
-                throw new ArgumentNullException(nameof(logMessage));
+                if (_AllowWriteNullMessages)
+                    logMessage = "null";
+                else
+                    throw new ArgumentNullException(nameof(logMessage));
             lock (lSettings)
             {
                 string filePath = GetFilePath(DateTime.Now);
@@ -233,7 +253,10 @@ namespace MainDen.Modules
         public void Write(Sender sender, DateTime dateTime, string message)
         {
             if (message is null)
-                throw new ArgumentNullException(nameof(message));
+                if (_AllowWriteNullMessages)
+                    message = "null";
+                else
+                    throw new ArgumentNullException(nameof(message));
             lock (lSettings)
             {
                 string logMessage = GetMessage(sender, dateTime, message);
@@ -244,9 +267,15 @@ namespace MainDen.Modules
         public void Write(Sender sender, DateTime dateTime, string message, string details)
         {
             if (message is null)
-                throw new ArgumentNullException(nameof(message));
+                if (_AllowWriteNullMessages)
+                    message = "null";
+                else
+                    throw new ArgumentNullException(nameof(message));
             if (details is null)
-                throw new ArgumentNullException(nameof(details));
+                if (_AllowWriteNullMessages)
+                    details = "null";
+                else
+                    throw new ArgumentNullException(nameof(details));
             lock (lSettings)
             {
                 string logMessage = GetMessage(sender, dateTime, message, details);
@@ -257,7 +286,10 @@ namespace MainDen.Modules
         public void Write(string message, Sender sender = Sender.Log)
         {
             if (message is null)
-                throw new ArgumentNullException(nameof(message));
+                if (_AllowWriteNullMessages)
+                    message = "null";
+                else
+                    throw new ArgumentNullException(nameof(message));
             lock (lSettings)
             {
                 DateTime dateTime = DateTime.Now;
@@ -267,9 +299,15 @@ namespace MainDen.Modules
         public void Write(string message, string details, Sender sender = Sender.Log)
         {
             if (message is null)
-                throw new ArgumentNullException(nameof(message));
+                if (_AllowWriteNullMessages)
+                    message = "null";
+                else
+                    throw new ArgumentNullException(nameof(message));
             if (details is null)
-                throw new ArgumentNullException(nameof(details));
+                if (_AllowWriteNullMessages)
+                    details = "null";
+                else
+                    throw new ArgumentNullException(nameof(details));
             lock (lSettings)
             {
                 DateTime dateTime = DateTime.Now;
