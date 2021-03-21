@@ -3,6 +3,8 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RootNamespace>MainDen.Modules</RootNamespace>
+    <Authors>MainDen</Authors>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
 </Project>
