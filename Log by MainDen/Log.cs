@@ -40,7 +40,7 @@ namespace MainDen.Modules
             File = 4,
         }
         private readonly object lSettings = new object();
-        private string _FilePathFormat = ".\\log_{0:yyyy-MM-dd}.txt";
+        private string _FilePathFormat = ".\\log\\log_{0:yyyy-MM-dd}.txt";
         public string FilePathFormat
         {
             get
