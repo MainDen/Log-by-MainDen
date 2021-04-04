@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
-    <RootNamespace>MainDen.Modules</RootNamespace>
+    <RootNamespace>MainDen.Modules.IO</RootNamespace>
     <Authors>MainDen</Authors>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
   </PropertyGroup>
 
 </Project>
