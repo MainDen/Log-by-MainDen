@@ -1,29 +1,10 @@
 ﻿using System;
 using System.IO;
 
-namespace MainDen.Modules
+namespace MainDen.Modules.IO
 {
     public class Log
     {
-        public class LogException : Exception
-        {
-            public LogException() : base() { }
-            public LogException(string message) : base(message) { }
-            public LogException(string message, Exception innerException) : base(message, innerException) { }
-        }
-        public class LogWriteException : LogException
-        {
-            public LogWriteException() : base() { }
-            public LogWriteException(string message) : base(message) { }
-            public LogWriteException(string message, Exception innerException) : base(message, innerException) { }
-        }
-        public class LogSettingsException : LogException
-        {
-            public LogSettingsException() : base() { }
-            public LogSettingsException(string message) : base(message) { }
-            public LogSettingsException(string message, Exception innerException) : base(message, innerException) { }
-        }
-        public Log() { }
         public enum Sender
         {
             Log = 0,
@@ -32,12 +13,35 @@ namespace MainDen.Modules
             Debug = 3,
         }
         [Flags]
-        private enum Output
+        public enum Output
         {
             None = 0,
             Custom = 1,
             Console = 2,
             File = 4,
+        }
+        public class LogException : Exception
+        {
+            public LogException() : base() { }
+            public LogException(string message) : base(message) { }
+            public LogException(string message, Exception innerException) : base(message, innerException) { }
+        }
+        public class LogWriteException : LogException
+        {
+            public LogWriteException(string message) : base(message) { output = Output.None; }
+            public LogWriteException(string message, Exception innerException) : base(message, innerException) { output = Output.None; }
+            public LogWriteException(Output output, string message) : base(message) { this.output = output; }
+            public LogWriteException(Output output, string message, Exception innerException) : base(message, innerException) { this.output = output; }
+            public LogWriteException(Output output) : this(output, $"Unable write to {output}.") { }
+            public LogWriteException(Output output, Exception innerException) : this(output, $"Unable write to {output}.", innerException) { }
+            private readonly Output output;
+            public Output Output { get => output; }
+        }
+        public class LogSettingsException : LogException
+        {
+            public LogSettingsException() : base() { }
+            public LogSettingsException(string message) : base(message) { }
+            public LogSettingsException(string message, Exception innerException) : base(message, innerException) { }
         }
         private readonly object lSettings = new object();
         private string _FilePathFormat = ".\\log\\log_{0:yyyy-MM-dd}.txt";
@@ -234,7 +238,7 @@ namespace MainDen.Modules
                         File.AppendAllText(filePath, logMessage);
                     } catch { output |= Output.File; }
                 if (output != Output.None)
-                    throw new LogWriteException($"Unable write to {output}.");
+                    throw new LogWriteException(output);
             }
         }
         public void WriteCustom(string logMessage)
@@ -347,10 +351,15 @@ namespace MainDen.Modules
                 message,
                 details);
         }
-        private static readonly Log _Default = new Log();
+        private static readonly object lStaticSettings = new object();
+        private static Log _Default;
         public static Log Default
         {
-            get => _Default;
+            get
+            {
+                lock (lStaticSettings)
+                    return _Default ??= new Log();
+            }
         }
     }
 }
