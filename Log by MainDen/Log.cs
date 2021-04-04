@@ -287,7 +287,7 @@ namespace MainDen.Modules.IO
                 WriteBase(logMessage, filePath);
             }
         }
-        public void Write(string message, Sender sender = Sender.Log)
+        public void Write(string message, Sender sender)
         {
             if (message is null)
                 if (_AllowWriteNullMessages)
@@ -300,7 +300,11 @@ namespace MainDen.Modules.IO
                 Write(sender, dateTime, message);
             }
         }
-        public void Write(string message, string details, Sender sender = Sender.Log)
+        public void Write(string message)
+        {
+            Write(message, Sender.Log);
+        }
+        public void Write(string message, string details, Sender sender)
         {
             if (message is null)
                 if (_AllowWriteNullMessages)
@@ -317,6 +321,10 @@ namespace MainDen.Modules.IO
                 DateTime dateTime = DateTime.Now;
                 Write(sender, dateTime, message, details);
             }
+        }
+        public void Write(string message, string details)
+        {
+            Write(message, details, Sender.Log);
         }
         public static string GetFilePath(string filePathFormat, DateTime fileDateTime)
         {
