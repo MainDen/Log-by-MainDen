@@ -28,6 +28,7 @@ namespace MainDen.Modules.IO
         }
         public class LogWriteException : LogException
         {
+            public LogWriteException() : base() { output = Output.None; }
             public LogWriteException(string message) : base(message) { output = Output.None; }
             public LogWriteException(string message, Exception innerException) : base(message, innerException) { output = Output.None; }
             public LogWriteException(Output output, string message) : base(message) { this.output = output; }
@@ -366,7 +367,7 @@ namespace MainDen.Modules.IO
             get
             {
                 lock (lStaticSettings)
-                    return _Default ??= new Log();
+                    return _Default ?? (_Default = new Log());
             }
         }
     }
