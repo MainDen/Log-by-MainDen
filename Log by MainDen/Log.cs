@@ -7,27 +7,57 @@ namespace MainDen.Modules.IO
     public class LogException : Exception
     {
         public LogException() : base() { }
+
         public LogException(string message) : base(message) { }
+        
         public LogException(string message, Exception innerException) : base(message, innerException) { }
     }
 
     public class LogWriteException : LogException
     {
-        public LogWriteException() : base() { output = Log.Outputs.None; }
-        public LogWriteException(string message) : base(message) { output = Log.Outputs.None; }
-        public LogWriteException(string message, Exception innerException) : base(message, innerException) { output = Log.Outputs.None; }
-        public LogWriteException(Log.Outputs output, string message) : base(message) { this.output = output; }
-        public LogWriteException(Log.Outputs output, string message, Exception innerException) : base(message, innerException) { this.output = output; }
-        public LogWriteException(Log.Outputs output) : this(output, $"Unable write to {output}.") { }
-        public LogWriteException(Log.Outputs output, Exception innerException) : this(output, $"Unable write to {output}.", innerException) { }
-        private readonly Log.Outputs output;
-        public Log.Outputs Output { get => output; }
+        public LogWriteException() : base()
+        {
+            _outputs = Log.Outputs.None;
+        }
+        
+        public LogWriteException(string message) : base(message)
+        {
+            _outputs = Log.Outputs.None;
+        }
+        
+        public LogWriteException(string message, Exception innerException) : base(message, innerException)
+        {
+            _outputs = Log.Outputs.None;
+        }
+        
+        public LogWriteException(Log.Outputs outputs, string message) : base(message)
+        {
+            _outputs = outputs;
+        }
+        
+        public LogWriteException(Log.Outputs outputs, string message, Exception innerException) : base(message, innerException)
+        {
+            _outputs = outputs;
+        }
+        
+        public LogWriteException(Log.Outputs outputs) : this(outputs, $"Unable write to {outputs}.") { }
+        
+        public LogWriteException(Log.Outputs outputs, Exception innerException) : this(outputs, $"Unable write to {outputs}.", innerException) { }
+        
+        private readonly Log.Outputs _outputs;
+        
+        public Log.Outputs Output
+        {
+            get => _outputs;
+        }
     }
 
     public class LogSettingsException : LogException
     {
         public LogSettingsException() : base() { }
+
         public LogSettingsException(string message) : base(message) { }
+        
         public LogSettingsException(string message, Exception innerException) : base(message, innerException) { }
     }
 
@@ -64,9 +94,9 @@ namespace MainDen.Modules.IO
 
         private bool _AllowWriteNullMessages = false;
 
-        private bool _IgnoreWriteExceptions = false;
-
         private bool _AutoDisableWriteOutputs = true;
+
+        private bool _IgnoreWriteExceptions = false;
 
         private Action<string> _Custom;
         
@@ -79,19 +109,21 @@ namespace MainDen.Modules.IO
             }
             set
             {
-                if (value is null)
-                    throw new ArgumentNullException();
-
-                try
+                lock (_lSettings)
                 {
-                    var filePath = GetFilePath(value, DateTime.Now);
+                    if (value is null)
+                        throw new ArgumentNullException();
 
-                    lock (_lSettings)
+                    try
+                    {
+                        var filePath = GetFilePath(value, DateTime.Now);
+
                         _FilePathFormat = value;
-                }
-                catch (Exception e)
-                {
-                    throw new LogSettingsException("Invalid file path format.", e);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new LogSettingsException("Invalid file path format.", e);
+                    }
                 }
             }
         }
@@ -105,19 +137,21 @@ namespace MainDen.Modules.IO
             }
             set
             {
-                if (value is null)
-                    throw new ArgumentNullException();
-
-                try
+                lock (_lSettings)
                 {
-                    GetLogMessage(value, Sender.Log, DateTime.Now, "");
+                    if (value is null)
+                        throw new ArgumentNullException();
 
-                    lock (_lSettings)
+                    try
+                    {
+                        GetLogMessage(value, Sender.Log, DateTime.Now, "");
+
                         _MessageFormat = value;
-                }
-                catch (Exception e)
-                {
-                    throw new LogSettingsException("Invalid message format.", e);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new LogSettingsException("Invalid message format.", e);
+                    }
                 }
             }
         }
@@ -178,20 +212,6 @@ namespace MainDen.Modules.IO
             }
         }
 
-        public bool IgnoreWriteExceptions
-        {
-            get
-            {
-                lock (_lSettings)
-                    return _IgnoreWriteExceptions;
-            }
-            set
-            {
-                lock (_lSettings)
-                    _IgnoreWriteExceptions = value;
-            }
-        }
-        
         public bool AutoDisableWriteOutputs
         {
             get
@@ -205,38 +225,60 @@ namespace MainDen.Modules.IO
                     _AutoDisableWriteOutputs = value;
             }
         }
+        
+        public bool IgnoreWriteExceptions
+        {
+            get
+            {
+                lock (_lSettings)
+                    return _IgnoreWriteExceptions;
+            }
+            set
+            {
+                lock (_lSettings)
+                    _IgnoreWriteExceptions = value;
+            }
+        }
 
         public event Action<string> Custom
         {
             add
             {
-                if (value is null)
-                    throw new ArgumentNullException();
-
                 lock (_lSettings)
+                {
+                    if (value is null)
+                        throw new ArgumentNullException();
+
                     _Custom += value;
+                }
             }
             remove
             {
-                if (value is null)
-                    throw new ArgumentNullException();
-
                 lock (_lSettings)
+                {
+                    if (value is null)
+                        throw new ArgumentNullException();
+
                     _Custom -= value;
+                }
             }
         }
 
         public string GetFilePath(DateTime dateTime)
         {
-            return GetFilePath(FilePathFormat, dateTime);
+            lock (_lSettings)
+                return GetFilePath(_FilePathFormat, dateTime);
         }
         
         public string GetLogMessage(Sender sender, DateTime dateTime, string message)
         {
-            if (message is null)
-                throw new ArgumentNullException(nameof(message));
+            lock (_lSettings)
+            {
+                if (message is null)
+                    throw new ArgumentNullException(nameof(message));
 
-            return GetLogMessage(MessageFormat, sender, dateTime, message);
+                return GetLogMessage(_MessageFormat, sender, dateTime, message);
+            }
         }
 
         private void WriteBase(string logMessage, string filePath)
@@ -281,20 +323,19 @@ namespace MainDen.Modules.IO
                         outputs |= Outputs.File;
                     }
 
-                if (!_IgnoreWriteExceptions && outputs != Outputs.None)
+                if (_AutoDisableWriteOutputs)
                 {
-                    if (_AutoDisableWriteOutputs)
-                    {
-                        if (outputs.HasFlag(Outputs.Custom))
-                            _WriteToCustom = false;
-                        if (outputs.HasFlag(Outputs.Console))
-                            _WriteToConsole = false;
-                        if (outputs.HasFlag(Outputs.File))
-                            _WriteToFile = false;
-                    }
-
-                    throw new LogWriteException(outputs);
+                    if (outputs.HasFlag(Outputs.Custom))
+                        _WriteToCustom = false;
+                    if (outputs.HasFlag(Outputs.Console))
+                        _WriteToConsole = false;
+                    if (outputs.HasFlag(Outputs.File))
+                        _WriteToFile = false;
                 }
+
+                if (!_IgnoreWriteExceptions)
+                    if (outputs != Outputs.None)
+                        throw new LogWriteException(outputs);
             }
         }
         
@@ -384,7 +425,6 @@ namespace MainDen.Modules.IO
         {
             if (messageFormat is null)
                 throw new ArgumentNullException(nameof(messageFormat));
-
             if (message is null)
                 throw new ArgumentNullException(nameof(message));
 
