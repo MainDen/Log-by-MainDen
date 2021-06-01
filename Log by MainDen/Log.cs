@@ -46,7 +46,7 @@ namespace MainDen.Modules.IO
         
         private readonly Log.Outputs _outputs;
         
-        public Log.Outputs Output
+        public Log.Outputs Outputs
         {
             get => _outputs;
         }
